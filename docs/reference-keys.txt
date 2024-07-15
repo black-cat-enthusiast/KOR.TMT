@@ -13,3 +13,6 @@ time-spent-freezing
 freezing-frequency
 average-duration-of-freeze
 regressions-1
+fig:unnamed-chunk-3
+fig:unnamed-chunk-11
+fig:unnamed-chunk-7

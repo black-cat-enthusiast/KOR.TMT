@@ -421,23 +421,6 @@ c <- data %>%
 knitr::kable(c)
 ```
 
-```{r}
-# Make "exploratory index"
-data$exp_index <- (data$Open_Tm*data$Open_Freq) / (data$Closed_Tm*data$Closed_Freq)
-
-# Run Oneway ANOVA
-oneway.test(exp_index ~ TMT, data = data, var.equal = TRUE)
-get_anova_table(a)
-
-# Run follow-up comparisons
-c <- data %>%
-  pairwise_t_test(
-  exp_index ~ Drug, paired = FALSE,
-  p.adjust.method = "bonferroni"
-  )
-
-knitr::kable(c)
-```
 
 
 

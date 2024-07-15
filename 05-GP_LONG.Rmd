@@ -599,35 +599,3 @@ f <- d %>%
 knitr::kable(f)
 ```
 
-### Regressions
-
-To investigate how each the frequency and the average duration of freezing contribute to the total amount of freezing during the session, we computed regression models with either Frequency or Average duration entered as the predictor and % Freezing entered as the dependent variable. 
-
-```{r,echo = TRUE}
-# A regression model
-a <- lm(Perc~Frz_Freq * Drug + Task, data=TwoWeeksFrz_data)
-summary(a)
-
-# Re-order the "drug" variable to get the intercept for the NorBNI group.
-b <- TwoWeeksFrz_data
-b$Drug <- as.character(b$Drug)
-b$Drug <- factor(b$Drug,levels = c("Nor-BNI","Saline"))
-
-# A different version of the same regression model
-a <- lm(Perc~Frz_Freq * Drug + Task, data=b)
-summary(a)
-```
-
-The first model accounted for 86% of the variability in time spent freezing (F(4,75) = 123.9, Adjusted R^2 = 0.86, p < 0.001), and indicated that Freezing frequency was a strong independent predictor of total time freezing (t(76) = 12.14, p < 0.001). The model also indicated a significant Frequency * Drug interaction (t(76) = 2.63, p = 0.01). We evaluated the simple effects to further contextualize the significant interaction. Among saline-treated mice, a 10-unit increase in freezing frequency was associated with a 3% increase in total time spent freezing whereas for NorBNI-injected mice, a 10-unit increase in frequency was associated with a 3.9% increase in freezing among Nor-BNI treated mice. In other words, there was a 30% increase in the estimated magnitude of the relationship between the frequency of freezing and total time spent freezing for mice injected with NorBNI.  
-
-```{r,echo=TRUE}
-# Model 2: X=Av_Dur, y=Perc
-a <- lm(Perc~Av_Dur * Drug + Task, data=TwoWeeksFrz_data)
-summary(a)
-```
-
-The second model accounted for 70% of the variability in time spent freezing (Adjusted R^2 = 0.70). The simple effects found that although average duration of freezing episode was a strong independent predictor of freezing time (t(76) = 7.03, p < 0.001), there was no interaction between this predictor and drug treatment (p = 0.56). A 0.1-second increase in the average duration of freezing episode was associated with a 3% increase in time freezing. 
-
-I have taught this course previously at UTM (Summer 2024). 
-
-I have been conducting independent research in lab-based settings for over 10 years. I hold a Honours BA an MA from Brock University, and I am a late-stage PhD candidate in the department of psychology at UTM. I am uniquely positioned to provide guidance to UTM students about research opportunities that are available at UTM. 
