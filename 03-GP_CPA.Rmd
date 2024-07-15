@@ -496,7 +496,7 @@ BL_white_time <- BL_pref_data$Tm_White
 t.test(BL_black_time,BL_white_time,paired=TRUE,var.equal=TRUE)
 ```
 
-Indeed, 38 / 41 mice tested in these experiments spent more time on the black side of the apparatus than the white side during the baseline test. Each mouse was exposed to TMT on the side that it exhibited a preference for during the baseline test (i.e. 38 of 41 mice were exposed to TMT on the black side of the apparatus; see figure XXX).
+Indeed, 38 / 41 mice tested in these experiments spent more time on the black side of the apparatus than the white side during the baseline test. Each mouse was exposed to TMT on the side that it exhibited a preference for during the baseline test (i.e. 38 of 41 mice were exposed to TMT on the black side of the apparatus).
 
 but did not exhibit a change in time spent in the neutral (non-preferred) compartment  (p = 0.88). 
 
