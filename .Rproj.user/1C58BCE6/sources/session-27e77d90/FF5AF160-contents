@@ -1,0 +1,64 @@
+---
+title: "Timeline"
+author: "JLB"
+date: "2024-06-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(ggplot2)
+```
+
+# Timeline of Experimental Proceedings
+
+Make reproduceable timeline with ggplot: 
+
+```{r}
+a <- ggplot()+
+  theme_void()+
+  ylim(0,6)+
+  xlim(0,9)+
+  annotate("segment",x=2,y=3,xend=9,yend=3, arrow = arrow())+
+  annotate("text",x=2,y=1.5,label="Experimental Day")+
+  annotate("text",x=1,y=3,label="Female C57 Mice")+
+  
+  annotate("segment",x=3,y=2,xend=3,yend=4)+
+  annotate("text",x=3,y=4.75,label="Baseline\nPreference\nTest")+
+  annotate("text",x=3,y=1.5,label="1")+
+  
+  annotate("segment",x=4,y=2,xend=4,yend=4)+
+  annotate("text", x=4,y=4.5,label="Drug\nInjections")+
+  annotate("text",x=4,y=1.5,label="2")+
+  
+  annotate("segment",x=5,y=2,xend=5,yend=4)+
+  annotate("text",x=5,y=4.5,label="Conditioning\nDay")+
+  annotate("text",x=5,y=1.5,label="3")+
+  
+  annotate("segment",x=6,y=2,xend=6,yend=4)+
+  annotate("text",x=6,y=4.5,label="Place\nPreference")+
+  annotate("text",x=6,y=1.5,label="4")+
+  
+  annotate("segment",x=7,y=2,xend=7,yend=4)+
+  annotate("text",x=7,y=4.5,label="Elevated\nPlus Maze")+
+  annotate("text",x=7,y=1.5,label="6")+
+
+  annotate("segment",x=8,y=2,xend=8,yend=4)+
+  annotate("text",x=8,y=4.5,label="Contextual\nFreezing")+
+  annotate("text",x=8,y=1.5,label="13")
+```
+
+And save it as both a .png and a .tiff file for publication. 
+
+```{r}
+ggsave("Panels/1_Timeline.png",a,height=2.5,width=9,dpi=300)  
+ggsave("Panels/tiffs/1_Timeline.tiff",a,height=2.5,width=9,device="tiff",dpi=300)  
+```
+
+```{r}
+knitr::include_graphics("Panels/1_Timeline.png")
+```
+
+The purpose of this timeline is to show a visual depiction of the repeated behavioral testing measures. 
+

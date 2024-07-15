@@ -1,0 +1,424 @@
+---
+title: "GP_LONG"
+author: "JLB"
+date: "2024-02-07"
+output: html_document
+---
+
+# Basal Freezing Long After TMT
+
+```{r setup_GP_LONG, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+options(scipen=999)
+```
+
+```{r}
+## Load Packages
+library(tidyverse)
+library(ggpubr)
+library(reshape2)
+library(png)
+library(rstatix)
+```
+
+```{r}
+# Get long after freezing data
+TwoWeeksFrz_data <- read_csv("Data/BL_Frz_Nov15.csv")
+TwoWeeksFrz_data$Drug <- as.character(TwoWeeksFrz_data$Drug)
+TwoWeeksFrz_data$Drug <- factor(TwoWeeksFrz_data$Drug, levels = unique(TwoWeeksFrz_data$Drug))
+
+train_data <- read_csv("Data/Train_Oct25.csv")
+train_data$Perc <- (train_data$Frz_Tm / 250)*100
+
+train_data$Drug <- as.character(train_data$Drug)
+train_data$Drug <- factor(train_data$Drug, levels = unique(train_data$Drug))
+
+train_data <- train_data %>% 
+  mutate(Av_Dur = Frz_Tm / Frz_Freq)
+ALL_frz_Data <- rbind(train_data,TwoWeeksFrz_data)
+ALL_frz_Data$Task <- as.character(ALL_frz_Data$Task)
+ALL_frz_Data$Task <- factor(ALL_frz_Data$Task,levels=c("Baseline","TMT","TMT Side","Neutral side"))
+OG_baseline_data <- train_data[train_data$Task == "Baseline", ]
+All_baseline_data <- rbind(OG_baseline_data, TwoWeeksFrz_data) %>%
+  filter(ID != 35)
+
+TwoWeeksFrz_data <- TwoWeeksFrz_data %>%
+  filter(ID != 35)
+```
+
+
+```{r}
+# Time Spent Freezing (Percent)
+a <- TwoWeeksFrz_data %>%
+  group_by(Drug,Task)%>%
+  summarise(
+    n=n(),
+    mean=mean(Perc),
+    sd=sd(Perc)
+  ) %>% 
+  mutate(se=sd/sqrt(n)) %>%
+  ggplot(aes(x=Drug,y=mean,colour=Drug,fill=Drug))+
+  geom_bar(stat="identity",alpha=0.2)+
+  geom_errorbar(aes(x=Drug,ymin=mean-se,ymax=mean+se),width=0.5)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  scale_fill_manual(values=c("#367588","#88250A"))+
+  theme_classic()+
+  facet_wrap(~Task,ncol=4)+
+  theme(plot.title=element_text(hjust=0.5))+
+  theme(legend.position = "none")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  labs(x="",
+       y="% Freezing")+
+  ylim(0,50)
+
+x <- data.frame(Drug = c("Sal","Sal"),
+                Task = c("Neutral side","TMT Side"),
+                end = c("NorBNI","NorBNI"),
+                y = c(30,30),
+                label = c("p=0.06","***"))
+
+x$Drug <- as.character(x$Drug)
+x$Drug <- factor(x$Drug,labels=unique(x$Drug))
+
+A <- a +
+  geom_jitter(data = TwoWeeksFrz_data, aes(x=Drug,y=Perc,shape=Drug),size=4,alpha=0.3,width=0.15,height=0)+ 
+  geom_signif(data = x, 
+              aes(xmin = Drug, xmax = end, annotations = label, y_position = y),colour="black",manual = TRUE)
+
+b <- All_baseline_data %>%
+  group_by(Drug,Task)%>%
+  summarise(
+    n=n(),
+    mean=mean(Perc),
+    sd=sd(Perc)
+  ) %>% 
+  mutate(se=sd/sqrt(n)) %>%
+  ggplot(aes(x=Task,y=mean,group=Drug,shape=Drug,colour=Drug,group=Drug))+
+  geom_point(size=3,alpha=0.8)+
+  geom_line(size=1)+
+  geom_errorbar(aes(x=Task,ymin=mean-se,ymax=mean+se),width=1,alpha=0.8)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  facet_wrap(~Drug)+
+  theme_classic()+
+  theme(legend.position="none")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  labs(x="",y="% Freezing")+
+  ylim(0,50)
+
+x <- data.frame(Task = c("Baseline","Baseline"),
+                Drug = c("Sal","NorBNI"),
+                end = c("Neutral side","Neutral side"),
+                y = c(30,30),
+                label = c("***","***"))
+
+y <- data.frame(Task = c("Neutral side","Neutral side"),
+                Drug = c("Sal","NorBNI"),
+                end = c("TMT Side","TMT Side"),
+                y = c(25,25),
+                label = c("n.s.","**"))
+
+x$Drug <- as.character(x$Drug)
+x$Drug <- factor(x$Drug,labels=unique(x$Drug))
+
+y$Drug <- as.character(x$Drug)
+y$Drug <- factor(y$Drug,labels=unique(y$Drug))
+
+B <- b +
+  geom_line(data=All_baseline_data, aes(x=Task,y=Perc,group=ID,colour=Drug),size=0.5,alpha=0.3)+
+  scale_colour_manual(values=c("#367588","#88250A"))+ 
+  geom_signif(data = x, 
+              aes(xmin = Task, xmax = end, annotations = label, y_position = y),colour="black",manual = TRUE)+ 
+  geom_signif(data = y, 
+              aes(xmin = Task, xmax = end, annotations = label, y_position = y),colour="black",manual = TRUE)
+    
+c <- All_baseline_data %>%
+  filter(Task != "Baseline") %>%
+  select("ID","Task","Expt","Drug","Frz_Tm") %>%
+  dcast(ID+Drug~Task) %>%
+  mutate(change = `TMT Side` - `Neutral side`) %>%
+  filter(change <45)
+
+C <- c %>%
+  group_by(Drug) %>%
+  summarise(
+    n=n(),
+    mean=mean(change),
+    sd=sd(change)
+  ) %>% mutate(se = sd / sqrt(n)) %>%
+  ggplot(aes(x=Drug,y=mean,colour=Drug,fill=Drug))+
+  geom_bar(stat="identity",alpha=0.2)+
+  geom_errorbar(aes(x=Drug,ymin=mean-se,ymax=mean+se),width=0.5)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  scale_fill_manual(values=c("#367588","#88250A"))+
+  theme_classic()+
+  theme(legend.position = "none")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  labs(x="",y="Change in Freezing (s)")+
+  geom_jitter(data=c,aes(x=Drug,y=change,shape=Drug),size=5,alpha=0.3,width=0.25)+
+  geom_hline(yintercept=0,alpha=0.5)+
+  geom_signif(y_position=20,xmin=1,xmax=2,
+              annotations="*",tip_length=0.02,colour="black")
+```
+
+```{r}
+# Number of freezes 
+a <- TwoWeeksFrz_data %>%
+  group_by(Drug,Task)%>%
+  summarise(
+    n=n(),
+    mean=mean(Frz_Freq),
+    sd=sd(Frz_Freq)
+  ) %>% 
+  mutate(se=sd/sqrt(n)) %>%
+  ggplot(aes(x=Drug,y=mean,colour=Drug,fill=Drug))+
+  geom_bar(stat="identity",alpha=0.2)+
+  geom_errorbar(aes(x=Drug,ymin=mean-se,ymax=mean+se),width=0.5)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  scale_fill_manual(values=c("#367588","#88250A"))+
+  theme_classic()+
+  facet_wrap(~Task,ncol=4)+
+  theme(plot.title=element_text(hjust=0.5))+
+  theme(legend.position = "none")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  labs(x="",
+       y="Freezing Frequency")+
+  ylim(0,150)
+
+x <- data.frame(Drug = c("Sal","Sal"),
+                Task = c("Neutral side","TMT Side"),
+                end = c("NorBNI","NorBNI"),
+                y = c(90,90),
+                label = c("n.s.","***"))
+
+x$Drug <- as.character(x$Drug)
+x$Drug <- factor(x$Drug,labels=unique(x$Drug))
+
+D <- a + geom_jitter(data = TwoWeeksFrz_data, aes(x=Drug,y=Frz_Freq,shape=Drug),size=4,alpha=0.3,width=0.15,height=0)+ 
+  geom_signif(data = x, 
+              aes(xmin = Drug, xmax = end, annotations = label, y_position = y),colour="black",manual = TRUE)
+
+e <- All_baseline_data %>%
+  group_by(Drug,Task)%>%
+  summarise(
+    n=n(),
+    mean=mean(Frz_Freq),
+    sd=sd(Frz_Freq)
+  ) %>% 
+  mutate(se=sd/sqrt(n)) %>%
+  ggplot(aes(x=Task,y=mean,group=Drug,shape=Drug,colour=Drug,group=Drug))+
+  geom_point(size=3,alpha=0.8)+
+  geom_line(size=1)+
+  geom_errorbar(aes(x=Task,ymin=mean-se,ymax=mean+se),width=1,alpha=0.8)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  facet_wrap(~Drug)+
+  theme_classic()+
+  theme(legend.position="none")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  labs(x="",y="Freezing Frequency")+
+  ylim(0,125)
+
+
+x <- data.frame(Task = c("Baseline","Baseline"),
+                Drug = c("Sal","NorBNI"),
+                end = c("Neutral side","Neutral side"),
+                y = c(80,80),
+                label = c("***","***"))
+
+y <- data.frame(Task = c("Neutral side","Neutral side"),
+                Drug = c("Sal","NorBNI"),
+                end = c("TMT Side","TMT Side"),
+                y = c(70,70),
+                label = c("n.s.","***"))
+
+x$Drug <- as.character(x$Drug)
+x$Drug <- factor(x$Drug,labels=unique(x$Drug))
+
+y$Drug <- as.character(x$Drug)
+y$Drug <- factor(y$Drug,labels=unique(y$Drug))
+
+E <- e +
+  geom_line(data=All_baseline_data, aes(x=Task,y=Frz_Freq,group=ID,colour=Drug),size=0.5,alpha=0.3)+
+  scale_colour_manual(values=c("#367588","#88250A"))+ 
+  geom_signif(data = x, 
+              aes(xmin = Task, xmax = end, annotations = label, y_position = y),colour="black",manual = TRUE)+ 
+  geom_signif(data = y, 
+              aes(xmin = Task, xmax = end, annotations = label, y_position = y),colour="black",manual = TRUE)
+
+
+
+OG_baseline_data <- train_data[train_data$Task == "Baseline", ]
+All_baseline_data <- rbind(OG_baseline_data, TwoWeeksFrz_data)
+
+c <- All_baseline_data %>%
+  filter(Task != "Baseline") %>%
+  select("ID","Task","Expt","Drug","Frz_Freq") %>%
+  dcast(ID+Drug~Task) %>%
+  mutate(change = `TMT Side` - `Neutral side`) %>%
+  filter(change <35)
+
+F <- c %>%
+  group_by(Drug) %>%
+  summarise(
+    n=n(),
+    mean=mean(change),
+    sd=sd(change)
+  ) %>% mutate(se = sd / sqrt(n)) %>%
+  ggplot(aes(x=Drug,y=mean,colour=Drug,fill=Drug))+
+  geom_bar(stat="identity",alpha=0.2)+
+  geom_errorbar(aes(x=Drug,ymin=mean-se,ymax=mean+se),width=0.5)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  scale_fill_manual(values=c("#367588","#88250A"))+
+  theme_classic()+
+  theme(legend.position = "none")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  labs(x="",y="Change in Freezing Frequency")+
+  geom_jitter(data=c,aes(x=Drug,y=change,shape=Drug),size=5,alpha=0.3,width=0.25)+
+  geom_hline(yintercept=0,alpha=0.5)+
+  geom_signif(y_position=10,xmin=1,xmax=2,
+              annotations="*",tip_length=0.02,colour="black")
+```
+
+```{r}
+cartoon <- readPNG("Cartoons/GPs_LONG.png")
+AA <- ggplot () + 
+  background_image(cartoon)+
+  coord_fixed(0.2)
+
+Long_Frz_panel <- ggarrange(A,B,C,
+                            D,E,F,
+                            nrow=2,ncol=3,
+                            labels=c("B","C","D","E","F","G"),
+                            widths = c(1,1,0.75,
+                                       1,1,0.75))
+panel <- ggarrange(AA,Long_Frz_panel,
+          nrow=2,ncol=1,heights=c(2,6),
+          labels=c("A"))+
+  theme(panel.background = element_rect(fill="#FFFFFF",colour="#FFFFFF"))+
+  theme(plot.background = element_rect(fill = "#FFFFFF", colour="#FFFFFF"))
+
+panel <- annotate_figure(panel, top=text_grob("NorBNI Enhances Freezing Long After the Single \nExposure to TMT",size=16,face="bold"))+
+  theme(panel.background = element_rect(fill="#FFFFFF",colour="#FFFFFF"))+
+  theme(plot.background = element_rect(fill = "#FFFFFF", colour="#FFFFFF"))
+
+ggsave("Panels/Long_Panel.png",panel,height=8,width=6,dpi=300)
+```
+
+```{r, fig.cap="Timeline of experimental proceedings: 10 days after the single 5-minute exposure to 10% TMT, mice were placed in each side of the conditioning apparatus for 5 minutes and basal levels of freezing were measured (A). Nor-BNI injected mice froze more than saline mice on the TMT-paired side, but not on the neutral side (B). Both drug conditions exhibited a robust increase in freezing relative to their baseline data from 10 days earlier (C). Saline mice decreased freezing between the two sessions whereas NorBNI-treated mice did not (C). The change in freezing behaviour between the two sessions was significantly reduced by NorBNI administration (D). The frequency of freezing was significantly higher for NorBNI injected mice on the TMT-paried side, but not the neutral side (E). Saline but not NorBNI injected mice reduced the frequency of freezing between the two sessions (F). The magnitude of the change between the two sessions was significantly reduced by NorBNI (G). Data presented as mean +/- SEM, * p < 0.05, ** p < 0.01, *** p < 0.001. "}
+knitr::include_graphics("Panels/Long_Panel.png")
+```
+
+## Statistical Analyses
+
+### Time Spent Freezing
+
+We computed a 2x2 ANOVA with side (Netural or TMT-paired) as the within subjects factor and Drug condition (Saline or NorBNI) as the between groups factor. This model indicated a significant side * Drug interaction (F(1,38) = 5.69, p = 0.02)
+
+```{r}
+# Analyze Time spent freezing (percent) first
+c <- All_baseline_data %>%
+  filter(Task != "Baseline") %>%
+  select("ID","Task","Expt","Drug","Frz_Tm") %>%
+  dcast(ID+Drug~Task) %>%
+  mutate(change = `TMT Side` - `Neutral side`) 
+
+
+d <- c %>%
+  select("ID","Drug",`Neutral side`, `TMT Side`) %>%
+  melt(id.vars=(c("ID","Drug")))
+
+a <- anova_test(data=d, dv=value, wid=ID, within = variable, between = Drug)
+knitr::kable(get_anova_table(a))
+```
+
+Follow-up comparisons of the significant interaction indicated that the difference in time spent freezing between Saline and Nor-BNI treated mice was not significant on the neutral size (p = 0.059), but Nor-BNI injected mice spent significantly more time freezing in the the TMT-paired compartment (p < 0.001).
+
+```{r, Follow_ups_LONG}
+e <- d %>%
+  group_by(variable)%>%
+  pairwise_t_test(
+  value ~ Drug, paired = FALSE,
+  p.adjust.method = "bonferroni"
+  )
+
+knitr::kable(e)
+```
+
+ Saline-treated mice exhibited a decrease in time spent freezing between the first and the second session of the long after test (p = 0.003) whereas TMT-treated mice did not decrease freezing between the two sessions (p =0.62).
+
+```{r}
+f <- d %>%
+  group_by(Drug)%>%
+  pairwise_t_test(
+  value ~ variable, paired = TRUE,
+  p.adjust.method = "bonferroni"
+  )
+
+knitr::kable(f)
+```
+
+Additionally, the change in freezing behaviour between the two sessions was significantly greater for Saline-treated mice than for NorBNI (t(38) = 2.43, p = 0.01)
+
+```{r}
+t.test(change~Drug,data=c)
+```
+
+### Freezing Frequency
+
+We also computed a 2x2 ANOVA on freezing frequency, which also indicated a Drug*Timepoint interaction (F(1,38) = 7.26, p = 0.01). 
+
+```{r}
+# Analyze Time spent freezing (percent) first
+c <- All_baseline_data %>%
+  filter(Task != "Baseline") %>%
+  select("ID","Task","Expt","Drug","Frz_Freq") %>%
+  dcast(ID+Drug~Task) %>%
+  mutate(change = `TMT Side` - `Neutral side`) 
+
+
+d <- c %>%
+  select("ID","Drug",`Neutral side`, `TMT Side`) %>%
+  melt(id.vars=(c("ID","Drug")))
+
+a <- anova_test(data=d, dv=value, wid=ID, within = variable, between = Drug)
+knitr::kable(get_anova_table(a))
+```
+
+Follow-up comparisons of the significant interaction indicated that there was no effect of Drug treatment on the frequency of freezing on the neutral size (p = 0.45), but Nor-BNI injected mice spent significantly more time freezing than saline-treated mice in the the TMT-paired compartment (p < 0.001).
+
+```{r}
+e <- d %>%
+  group_by(variable)%>%
+  pairwise_t_test(
+  value ~ Drug, paired = FALSE,
+  p.adjust.method = "bonferroni"
+  )
+
+knitr::kable(e)
+```
+
+Saline-treated mice exhibited a decrease in the frequency of freezing between the first and the second session of the long after test (p = <0.001) whereas TMT-treated mice did not decrease freezing between the two sessions (p = 0.53).
+
+```{r}
+f <- d %>%
+  group_by(Drug)%>%
+  pairwise_t_test(
+  value ~ variable, paired = TRUE,
+  p.adjust.method = "bonferroni"
+  )
+
+knitr::kable(f)
+```
+
+Additionally, the change in freezing behaviour between the two sessions was significantly greater for Saline-treated mice than for NorBNI (t(38) = 2.71, p = 0.01)
+
+```{r}
+t.test(change~Drug,data=c)
+```
+
+
+
+
+
+
+

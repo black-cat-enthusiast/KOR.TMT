@@ -1,0 +1,621 @@
+---
+title: "GP_CPA"
+author: "JLB"
+date: "2024-02-07"
+output: html_document
+---
+
+# Conditioned Place Aversion to TMT
+
+```{r,setup,include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message=FALSE,warning=FALSE)
+
+# Load Packages
+library(tidyverse)
+library(ggpubr)
+library(reshape2)
+library(png)
+library(rstatix)
+```
+
+```{r}
+# DEFINE FUNCTION 
+### Bar Chart with individual lines overlain
+BL_bar_lines_fun <- function(data,var_1,var_2,ylim,yaxis,lab_1,lab_2,title){
+
+a <- data %>%
+  select("ID", var_1,var_2) %>%
+  melt(id.vars = c("ID"))
+  
+
+b <- data %>%
+  select("ID",var_1,var_2) %>%
+  melt(id.vars=c("ID"))%>%
+  group_by(variable) %>%
+  summarise(
+    n=n(),
+    mean=mean(value),
+    sd=sd(value)
+  ) %>% mutate(se = sd / sqrt(n)) %>%
+  ggplot(aes(x=variable,y=mean,colour=variable,fill=variable))+
+  geom_bar(stat="identity",alpha=0.5,colour=NA)+
+  geom_errorbar(aes(x=variable,ymin=mean-se,ymax=mean+se),width=0.5)+
+  scale_colour_manual(values=c("black","black"))+
+  scale_fill_manual(values=c("darkgrey","black"))+
+  theme_classic()+
+  theme(plot.title = element_text(hjust=0.5))+
+  theme(legend.position = "none")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  ylim(0,ylim)+
+  labs(x="",y=yaxis,title=title)+
+  scale_x_discrete(labels = c(lab_1, lab_2))
+
+c <- b +
+  geom_line(data=a,aes(x=variable,y=value,group=ID),size=0.4,alpha=0.2)
+
+return(c)
+
+}
+bar_lines_fun <- function(data,var_1,var_2,ylim,yaxis,lab_1,lab_2,title){
+
+a <- data %>%
+  select("ID","Drug", var_1,var_2) %>%
+  melt(id.vars = c("ID","Drug"))
+  
+
+b <- data %>%
+  select("ID","Drug",  var_1,var_2) %>%
+  melt(id.vars=c("ID","Drug"))%>%
+  group_by(Drug,variable) %>%
+  summarise(
+    n=n(),
+    mean=mean(value),
+    sd=sd(value)
+  ) %>% mutate(se = sd / sqrt(n)) %>%
+  ggplot(aes(x=variable,y=mean,colour=Drug,fill=Drug))+
+  geom_bar(stat="identity",alpha=0.5,colour=NA)+
+  geom_errorbar(aes(x=variable,ymin=mean-se,ymax=mean+se),width=0.5)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  scale_fill_manual(values=c("#367588","#88250A"))+
+  theme_classic()+
+  theme(plot.title = element_text(hjust=0.5))+
+  theme(legend.position = "none")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  facet_wrap(~Drug)+
+  ylim(0,ylim)+
+  labs(x="",y=yaxis,title=title)+
+  scale_x_discrete(labels = c(lab_1, lab_2))
+
+c <- b +
+  geom_line(data=a,aes(x=variable,y=value,group=ID),size=0.5,alpha=0.3)
+
+return(c)
+
+}
+```
+
+```{r}
+# Get Baseline Data
+BL_pref_data <- read_csv("Data/Baseline_Pref.csv")
+
+BL_pref_data$Drug <- as.character(BL_pref_data$Drug)
+BL_pref_data$Drug <- factor(BL_pref_data$Drug, levels = unique(BL_pref_data$Drug))
+```
+
+```{r}
+## Baseline Preference for the black side of the apparatus 
+# Bar chart overlaid with individuals lines. 
+
+### Percent preference for the black compartment 
+A <- BL_bar_lines_fun(BL_pref_data,"Tm_White","Tm_Black",250,"Occupancy Time (seconds)", "White Side","Black Side","Basal \nPreferences")+
+  geom_signif(y_position=225,xmin=1,xmax=2,
+              annotations="***",tip_length=0.02,colour="black")
+```
+
+```{r}
+# Analyze Baseline Preference Strength
+# Computed as % of "compartment time" - ignore time in the center so data are free to vary
+# Mice exhibit ~66% preference for the black side of the apparatus
+# Only 3 / 41 mice tested today prefer the white side of the CPP box.
+# These 3 individuals will be exposed to TMT on the white side. 
+
+data_2 <- BL_pref_data %>%
+  select("ID","Drug", "Tm_White","Tm_Black") %>% 
+  mutate(Black_pref = Tm_Black / (Tm_White + Tm_Black)*100)
+
+data_2$dum_ID <- c(1:length(data_2$ID))
+
+Average_pref <- mean(data_2$Black_pref)
+SD_pref <- sd(data_2$Black_pref)
+SE_pref <- SD_pref / sqrt(40)
+
+B <- data_2 %>%
+  ggplot(aes(x=dum_ID,y=Black_pref,colour=Drug,shape=Drug))+
+  geom_point(size=1.5,alpha=0.6)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  theme_classic()+
+  theme(plot.title = element_text(hjust=0.5))+
+  theme(plot.subtitle=element_text(hjust=0.5))+
+  theme(legend.position=c(0,0),legend.justification = c(0,0))+
+  geom_hline(yintercept=50,size=1,alpha=0.4,linetype="dashed",colour="black")+
+  geom_hline(yintercept = Average_pref)+
+  geom_hline(yintercept=Average_pref+SE_pref,alpha=0.5,linetype="dashed")+
+  geom_hline(yintercept=Average_pref-SE_pref,alpha=0.5,linetype="dashed")+
+  ylim(0,100)+
+  labs(x="Individual Mice",
+       y="% Preference for the black side",
+       title="Pre-Test",
+       subtitle="Average \npreference= 66%",
+       colour=NULL,shape=NULL)
+```
+
+```{r}
+### Convert to time spent on the "initially preferred side". 
+x <- BL_pref_data %>%
+  mutate(Tm_Pref_Side = case_when(
+    BL_pref_data$Preferred_Side == "Black" ~ Tm_Black,
+    BL_pref_data$Preferred_Side == "White" ~ Tm_White
+  )) 
+
+y <- x %>%
+  mutate(Tm_NonPref_Side = case_when(
+    BL_pref_data$Preferred_Side == "Black" ~ BL_pref_data$Tm_White,
+    BL_pref_data$Preferred_Side == "White" ~ BL_pref_data$Tm_Black
+  ))
+
+
+x <- data.frame(Task = c("Tm_NonPref_Side","Tm_NonPref_Side"),
+                Drug = c("Sal","NorBNI"),
+                end = c("Tm_Pref_Side","Tm_Pref_Side"),
+                y = c(220,220),
+                label = c("***","***"))
+x$Drug <- as.character(x$Drug)
+x$Drug <- factor(x$Drug,labels=unique(x$Drug))
+
+C <- bar_lines_fun(y, "Tm_NonPref_Side", "Tm_Pref_Side",250,"Occupancy Time (seconds)","Neutral Side", "TMT Side","Pre-Test"  )+ 
+  geom_signif(data = x, 
+              aes(xmin = Task, xmax = end, annotations = label, y_position = y),colour="black",manual = TRUE)
+```
+
+```{r}
+Test_data <- read_csv("Data/CPA_test.csv") # Get data
+Test_data$Drug <- BL_pref_data$Drug # Attach Drug info
+
+Test_data$Drug <- as.character(Test_data$Drug) # Reorder the conditions so SAL comes first :) 
+Test_data$Drug <- factor(Test_data$Drug, levels = unique(Test_data$Drug))
+```
+
+```{r}
+x_2 <- Test_data %>%
+  mutate(Tm_Pref_Side = case_when(
+    BL_pref_data$Preferred_Side == "Black" ~ Test_data$Tm_Black,
+    BL_pref_data$Preferred_Side == "White" ~ Test_data$Tm_White
+  )) 
+
+y_2 <- x_2 %>%
+  mutate(Tm_NonPref_Side = case_when(
+    BL_pref_data$Preferred_Side == "Black" ~ Test_data$Tm_White,
+    BL_pref_data$Preferred_Side == "White" ~ Test_data$Tm_Black
+  ))
+
+y_2$BL_tm_Pref_Side <- y$Tm_Pref_Side
+y_2$BL_tm_NonPref_Side <- y$Tm_NonPref_Side
+
+x <- data.frame(Task = c("Tm_NonPref_Side","Tm_NonPref_Side"),
+                Drug = c("Sal","NorBNI"),
+                end = c("Tm_Pref_Side","Tm_Pref_Side"),
+                y = c(100,100),
+                label = c("n.s.","n.s."))
+x$Drug <- as.character(x$Drug)
+x$Drug <- factor(x$Drug,labels=unique(x$Drug))
+
+N_2 <- bar_lines_fun(y_2,"Tm_NonPref_Side","Tm_Pref_Side",250,"Occupancy Time (seconds)", "Neutral Side","TMT Side","Post-Test")
+
+
+
+### Percent preference for the black compartment 
+N <- bar_lines_fun(Test_data,"Tm_White","Tm_Black",250,"Occupancy Time (seconds)", "White Side","Black Side","Mice NO LONGER  Prefer the Black side of the Apparatus")
+
+### Number of entries into each side
+Test_data$BL_loco <- BL_pref_data$Freq_White + BL_pref_data$Freq_Black
+Test_data$Test_loco <- Test_data$Freq_White + Test_data$Freq_Black
+
+a <- Test_data %>%
+  select(c("ID","Drug","BL_loco","Test_loco"))%>%
+  melt(id.vars = c("ID","Drug"))%>% 
+  group_by(Drug,variable) %>% 
+  summarise(n=n(),
+            mean=mean(value),
+            sd=sd(value)
+            ) %>% 
+  mutate(se=sd/sqrt(n))
+
+
+### Average Duration of visit
+
+Test_data$AvDur_White <- Test_data$Tm_White/Test_data$Freq_White
+Test_data$AvDur_Black <- Test_data$Tm_Black/Test_data$Freq_Black
+
+
+##### Compare Time on each side during the pre-test and post-test
+
+y$BL_tm_white <- BL_pref_data$Tm_White
+y$BL_tm_black <-  BL_pref_data$Tm_Black
+
+
+x <- data.frame(Task = c("BL_tm_Pref_Side","BL_tm_Pref_Side"),
+                Drug = c("Sal","NorBNI"),
+                end = c("Tm_Pref_Side","Tm_Pref_Side"),
+                y = c(220,220),
+                label = c("***","***"))
+x$Drug <- as.character(x$Drug)
+x$Drug <- factor(x$Drug,labels=unique(x$Drug))
+
+Q <- bar_lines_fun(y_2,"BL_tm_Pref_Side","Tm_Pref_Side",250,"Occupancy Time (seconds)", "Pre-Test","Post-Test","TMT Side")+ 
+  geom_signif(data = x, 
+              aes(xmin = Task, xmax = end, annotations = label, y_position = y),colour="black",manual = TRUE)
+
+x <- data.frame(Task = c("BL_tm_NonPref_Side","BL_tm_NonPref_Side"),
+                Drug = c("Sal","NorBNI"),
+                end = c("Tm_NonPref_Side","Tm_NonPref_Side"),
+                y = c(100,100),
+                label = c("n.s.","n.s."))
+x$Drug <- as.character(x$Drug)
+x$Drug <- factor(x$Drug,labels=unique(x$Drug))
+
+R <- bar_lines_fun(y_2,"BL_tm_NonPref_Side","Tm_NonPref_Side",250,"Occupancy Time (seconds)", "Pre-Test","Post-Test","Neutral side")
+
+##### Compare Number of entries during pre-test and post-test
+
+Test_data$BL_freq_white <- BL_pref_data$Freq_White
+Test_data$BL_freq_black <-  BL_pref_data$Freq_Black
+
+##### Compare Av_Dur at TRAIN and TEST
+
+Test_data$BL_AvDUR_white <- BL_pref_data$Tm_White / BL_pref_data$Freq_White
+Test_data$BL_AvDUR_black <- BL_pref_data$Tm_Black / BL_pref_data$Freq_Black
+
+U <- bar_lines_fun(Test_data,"BL_AvDUR_white","AvDur_White",20,"Occupancy Time (seconds)", "Pre-Test","Post-Test","Change in Average Duration of visit to the white compartment")
+
+V <- bar_lines_fun(Test_data,"BL_AvDUR_black","AvDur_Black",40,"Occupancy Time (seconds)", "Pre-Test","Post-Test","Change in Average Duration of visit to the black compartment")
+```
+
+```{r}
+# Analyze Preference Strength
+Average_pref <- mean(Test_data$Perc_Pref)
+SD_pref <- sd(Test_data$Perc_Pref)
+SE_pref <- SD_pref / sqrt(40)
+Test_data$dum_ID <- c(1:length(Test_data$ID))
+
+W <- Test_data %>%
+  ggplot(aes(x=dum_ID,y=Perc_Pref,colour=Drug,shape=Drug))+
+  geom_point(size=1.5,alpha=0.6)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  theme_classic()+
+  theme(plot.title=element_text(hjust=0.5))+
+  theme(plot.subtitle = element_text(hjust=0.5))+
+  theme(legend.position=c(0,0),legend.justification = c(0,0))+
+  geom_hline(yintercept=50,size=1,alpha=0.4,linetype="dashed",colour="black")+
+  geom_hline(yintercept = Average_pref)+
+  geom_hline(yintercept=Average_pref+SE_pref,alpha=0.5,linetype="dashed")+
+  geom_hline(yintercept=Average_pref-SE_pref,alpha=0.5,linetype="dashed")+
+  ylim(0,100)+
+  labs(x="Individual Mice",
+       y="% Preference for the black side",
+       title="Post-Test",
+       subtitle="Average \npreference = 52%",
+       colour=NULL,shape=NULL)
+```
+
+```{r}
+# 3 bars - STATISTICALLY ILLEGAL but it looks real nice..
+
+bar_lines_THREE <- function(data,var_1,var_2,var3,ylim,yaxis,lab_1,lab_2,lab_3,title){
+
+a <- data %>%
+  select("ID","Drug", var_1,var_2,var3) %>%
+  melt(id.vars = c("ID","Drug"))
+  
+
+b <- data %>%
+  select("ID","Drug",  var_1,var_2,var3) %>%
+  melt(id.vars=c("ID","Drug"))%>%
+  group_by(Drug,variable) %>%
+  summarise(
+    n=n(),
+    mean=mean(value),
+    sd=sd(value)
+  ) %>% mutate(se = sd / sqrt(n)) %>%
+  ggplot(aes(x=variable,y=mean,colour=Drug,fill=Drug))+
+  geom_bar(stat="identity",alpha=0.5,colour=NA)+
+  geom_errorbar(aes(x=variable,ymin=mean-se,ymax=mean+se),width=0.5)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  scale_fill_manual(values=c("#367588","#88250A"))+
+  theme_classic()+
+  theme(plot.title = element_text(hjust=0.5))+
+  theme(legend.position = "none")+
+  facet_wrap(~Drug)+
+  ylim(0,ylim)+
+  labs(x="",y=yaxis,title=title)+
+  scale_x_discrete(labels = c(lab_1, lab_2,lab_3))
+
+c <- b +
+  geom_line(data=a,aes(x=variable,y=value,group=ID),size=1,alpha=0.6)
+
+return(c)
+
+}
+
+BL_pref_data$Tm_Center <-  250 - (BL_pref_data$Tm_White + BL_pref_data$Tm_Black)
+AA <- bar_lines_THREE(BL_pref_data,"Tm_Black","Tm_Center","Tm_White",250,"Occupancy Time (seconds)","Black Side","Center","White Side","Pre-Test")
+
+Test_data$Tm_Center <- 250 - (Test_data$Tm_White + Test_data$Tm_Black)
+BB <- bar_lines_THREE(Test_data,"Tm_Black","Tm_Center","Tm_White",250,"Occupancy Time (seconds)","Black Side","Center","White Side", "Post-Test")
+  
+three_bars_panel <- ggarrange(AA,BB,
+          nrow=1,ncol=2,
+          labels=c("A","B"))
+ggsave("three_bars.png",three_bars_panel,height=3,width=8,dpi=250)
+```
+
+```{r,CPA_score}
+A_A <- y_2 %>%
+  select(c("ID","Drug", "BL_tm_Pref_Side","BL_tm_NonPref_Side", "Tm_Pref_Side","Tm_NonPref_Side"))%>%
+  mutate(
+    BL_CPA_score = BL_tm_Pref_Side / BL_tm_NonPref_Side,
+    Post_CPA_score = Tm_Pref_Side / Tm_NonPref_Side
+  ) %>%
+  select(c("ID","Drug", "BL_CPA_score","Post_CPA_score")) %>%
+  melt(id.vars=c("ID","Drug")) %>%
+  group_by(Drug) %>%
+  ggplot(aes(x=variable,y=value,colour=Drug,group=ID))+
+  geom_line(size=0.5,alpha=0.5)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  theme_classic()+
+  theme(legend.position="none")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  facet_wrap(~Drug,ncol = 2)+
+  labs(x="",y="CPA Score", colour=NULL,group=NULL)+
+  scale_x_discrete(labels=c("Pre-Test","Post-Test"))+
+  ylim(0,10)
+
+
+x <- data.frame(Task = c("BL_CPA_score","BL_CPA_score"),
+                Drug = c("Sal","NorBNI"),
+                ID = c("Sal","NorBNI"),
+                end = c("Post_CPA_score","Post_CPA_score"),
+                y = c(8.5,8.5),
+                label = c("***","***"))
+x$Drug <- as.character(x$Drug)
+x$Drug <- factor(x$Drug,labels=unique(x$Drug))
+
+A_A <- A_A + 
+  geom_signif(data = x, 
+              aes(xmin = Task, xmax = end, annotations = label, y_position = y),colour="black",manual = TRUE)
+
+y2 <- y_2 %>%
+  select(c("ID","Drug", "BL_tm_Pref_Side","BL_tm_NonPref_Side", "Tm_Pref_Side","Tm_NonPref_Side"))%>%
+  mutate(
+    BL_CPA_score = BL_tm_Pref_Side / BL_tm_NonPref_Side,
+    Post_CPA_score = Tm_Pref_Side / Tm_NonPref_Side
+  ) %>%
+  select(c("ID","Drug", "BL_CPA_score","Post_CPA_score")) %>%
+  mutate(
+    CPA_change_score = (Post_CPA_score - BL_CPA_score) 
+  ) 
+
+set.seed(1)
+B_B <- y2 %>%
+  group_by(Drug) %>%
+  summarise(
+    n=n(),
+    mean=mean(CPA_change_score),
+    sd=sd(CPA_change_score)
+  ) %>% mutate(se = sd/sqrt(n)) %>%
+  ggplot(aes(x=Drug,y=mean,colour=Drug,fill=Drug))+
+  geom_bar(stat="identity",alpha=0.5,colour=NA)+
+  geom_errorbar(aes(x=Drug,ymin=mean-se,ymax=mean+se),width=0.5,alpha=0.8)+
+  scale_colour_manual(values=c("#367588","#88250A"))+
+  scale_fill_manual(values=c("#367588","#88250A"))+
+  ylim(-8,2)+
+  theme_classic()+
+  theme(legend.position = "none")+
+  theme(axis.text.x = element_text(angle = 45, hjust=1))+
+  geom_jitter(data=y2,aes(x=Drug,y=CPA_change_score,shape=Drug),size=1,alpha=0.3,width=0.25,height=0)+
+  geom_hline(yintercept=0,linetype="dashed",colour="darkgrey")+
+  labs(
+    x="",
+    y="Change in CPA Score"
+  )
+
+x <- data.frame(Task = c("BL_CPA_score"),
+                Drug = c("Sal"),
+                ID = c("NorBNI"),
+                y = c(1),
+                label = c("n.s."))
+
+B_B <- B_B + 
+  geom_signif(data = x, 
+              aes(xmin = Drug, xmax = ID, annotations = label, y_position = y),colour="black",manual = TRUE)
+
+panel <- ggarrange(A_A,B_B,
+          nrow=1,ncol=2,
+          widths=c(1.5,1))
+
+library(latex2exp)
+
+panel <- annotate_figure(panel,top=text_grob(TeX("$CPA \\,score = \\frac{Time \\,on \\,the \\,initially \\,preferred \\,side}{Time \\,on \\,the \\,initially \\, non-preferred \\,side}$"),size=7))
+```
+
+
+
+```{r}
+cartoon <- readPNG("Cartoons/TMT_CPA.png")
+AA <- ggplot () + 
+  background_image(cartoon)+
+  coord_fixed(0.15)
+
+top_row <- ggarrange(A,B,W,panel,
+                     nrow=1,ncol=4,
+                     common.legend=FALSE,
+                     labels=c("B","C","D","E"),
+                     widths=c(.75,1,1,1.5)) 
+
+bottom_row <- ggarrange(R,Q,C,N_2,
+                        nrow=1,ncol=4,
+                        labels=c("F","G","H","I"))
+
+CPA_panel <- ggarrange(top_row,bottom_row,
+          nrow=2,ncol=1)
+
+test_panel_2 <- ggarrange(AA,CPA_panel,
+                        nrow=2,ncol=1,
+                        heights=c(1,4),
+                        labels=c("A"))
+
+test_panel_2 <- test_panel_2 +
+  theme(panel.background = element_rect(fill="#FFFFFF",colour="#FFFFFF"))+
+  theme(plot.background = element_rect(fill = "#FFFFFF", colour="#FFFFFF"))
+
+ggsave("Panels/3_CPA_panel.png",test_panel_2,height=7,width = 8,dpi=300)
+ggsave("Panels/tiffs/3_CPA_panel.tiff",test_panel_2,height=7,width=8,dpi=500,device=tiff)
+```
+
+```{r,fig.cap="Timeline of experimental proceedings for Conditioned Place Aversion (A). The Conditioning apparatus used in these epxeriments was biased, such that mice exhibit an overall preference for the black compartment over the white compartment under basal conditions (B,C). The preference for the black compartment was reduced after the training session with TMT (D). Mice exhibited conditioned place aversion between the pre-test and the post-test (E) Which was not altered by NorBNI (F). Between the pre-test and the post-test, mice reduced time spent on the TMT-paried side (G) but did not exhibit a change in time spent on the netutral side (H). The strong side preferences that were observed during the Pre-test (I) were ablated by the single paring with TMT (J). Data presented as mean value +/- SEM, *** indicates p < 0.001."}
+knitr::include_graphics("Panels/3_CPA_panel.png")
+```
+
+## Statistical Analyses
+
+We conducted an initial preference test to evaluate each mouse's preferred side of the CPP apparatus. Time spent in each of the 3 compartments was scored manually. We found that overall, mice preferred the black side of the apparatus over the white side (paired t(40) = 8.53, p < 0.001).
+
+```{r}
+BL_black_time <- BL_pref_data$Tm_Black
+BL_white_time <- BL_pref_data$Tm_White
+
+t.test(BL_black_time,BL_white_time,paired=TRUE,var.equal=TRUE)
+```
+
+Indeed, 38 / 41 mice tested in these experiments spent more time on the black side of the apparatus than the white side during the baseline test. Each mouse was exposed to TMT on the side that it exhibited a preference for during the baseline test (i.e. 38 of 41 mice were exposed to TMT on the black side of the apparatus; see figure XXX).
+
+but did not exhibit a change in time spent in the neutral (non-preferred) compartment  (p = 0.88). 
+
+```{r}
+x <- BL_pref_data %>%
+  mutate(Tm_NON_Pref_Side = case_when(
+    BL_pref_data$Preferred_Side == "Black" ~ Tm_White,
+    BL_pref_data$Preferred_Side == "White" ~ Tm_Black
+  )) 
+
+Baseline_tm_NON_PREF <- x$Tm_NON_Pref_Side
+
+y <- Test_data %>%
+  mutate(Tm_NON_Pref_Side = case_when(
+    BL_pref_data$Preferred_Side == "Black" ~ Tm_White,
+    BL_pref_data$Preferred_Side == "White" ~ Tm_Black
+  )) 
+
+Post_tm_NON_PREF <- y$Tm_NON_Pref_Side
+
+t.test(Baseline_tm_NON_PREF,Post_tm_NON_PREF,paired=TRUE,var.equal=TRUE)
+```
+
+To investigate chagnes in occupancy time between the Pre-test and the Post-test, computed a 3-way mixed model ANOVA with Task (pre-test or post-test) and Side (preferred or non-preferred) entered as the within-subjects variables, and Drug condition (Sailne or NorBNI) entered as a between-groups factor. The model indicated a significant Task * Side interaction (F(1,39) = 76.52, p < 0.001). 
+
+```{r,organize_data_for_ANOVA}
+s <- y_2 %>%
+  select("ID","Drug","Tm_Pref_Side","Tm_NonPref_Side","BL_tm_Pref_Side","BL_tm_NonPref_Side") %>%
+  rename("Post_Pref" = "Tm_Pref_Side", 
+        "Post_Non" = "Tm_NonPref_Side",
+        "Pre_Pref" =  "BL_tm_Pref_Side",
+        "Pre_Non" = "BL_tm_NonPref_Side") %>%
+  melt(id.vars = c("ID","Drug"))
+
+s <- y_2 %>%
+  select("ID","Drug","Tm_Pref_Side","Tm_NonPref_Side") %>%
+  rename("Preferred" = "Tm_Pref_Side", 
+        "Non-Preferred" = "Tm_NonPref_Side")%>%
+  mutate(Task = "Post") %>%
+  melt(id.vars = c("ID","Drug","Task"))
+
+t <- y_2 %>%
+  select("ID","Drug","BL_tm_Pref_Side","BL_tm_NonPref_Side") %>%
+  rename("Preferred" =  "BL_tm_Pref_Side",
+        "Non-Preferred" = "BL_tm_NonPref_Side") %>%
+  mutate(Task = "Pre") %>%
+  melt(id.vars=c("ID","Drug","Task"))
+
+u <- rbind(s,t) %>%
+  rename("Side" = "variable")
+
+u$Task <- factor(u$Task,levels=unique(u$Task))
+```
+
+```{r, Omnibus_test}
+a <- anova_test(data=u, dv=value, wid=ID, within = c(Task,Side), between = Drug)
+knitr::kable(get_anova_table(a))
+```
+
+Follow-up analyses of the significant interaction indicated that mice exhibited robust preferences during the baseline session (t(41) = 10.27, p < 0.001) and that the preferences were not present during the post-test session (p = 0.51). Moreover, Mice decreased the amount of time spent on the initially prefrred side of the apparatus between the pre-test and the post-test (t(41) = 10.57, p < 0.001) but there was no change in occupancy time on the non-preferred side between the two sessions (p = 0.88). The 3-way interaction between Drug, Task and Side was non-significant (p = 0.94), indicating that kappa opioid antagonism did not alter the induction or the expression of conditioned place aversion to TMT in female mice. 
+
+```{r, Follow_ups}
+b <- u %>%
+  group_by(Task)%>%
+  pairwise_t_test(
+  value ~ Side, paired = TRUE,
+  p.adjust.method = "bonferroni"
+  )
+
+knitr::kable(b)
+
+c <- u %>%
+  group_by(Side)%>%
+  pairwise_t_test(
+  value ~ Task, paired = TRUE,
+  p.adjust.method = "bonferroni"
+  )
+
+knitr::kable(c)
+```
+
+We also computed "CPA Scores" which represent the *ratio* of time on the preferred side to the non-preferred side: 
+
+$$CPA \; score = \frac{time \;on \;the \;preferred \;side}{time \;on \;the \;non-preferred \;side}$$
+
+
+We found a significant effect of timepoint on CPA scores such that the ratio decreased between the pre-test and the post-test (F(1,39) = 22.67, p < 0.001)
+
+```{r,analyze_CPA_scores}
+x <- y2 %>%
+  select("ID","Drug","BL_CPA_score","Post_CPA_score") %>%
+  melt(id.vars=c("ID","Drug"))
+
+a <- anova_test(data=x, dv=value, wid=ID, within = variable, between = Drug)
+knitr::kable(get_anova_table(a))
+```
+
+The magnitude of the change in CPA score was not different for NorBNI-treated mice (p = 0.48).
+
+```{r}
+library(car)
+leveneTest(CPA_change_score ~ Drug, y2)
+t.test(CPA_change_score~Drug, data=y2,var.equal=TRUE)
+
+
+Nor <- y2[y2$Drug == "NorBNI", ]
+
+boxplot(Nor$CPA_change_score)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
