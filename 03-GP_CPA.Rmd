@@ -582,7 +582,6 @@ We also computed "CPA Scores" which represent the *ratio* of time on the preferr
 
 $$CPA \; score = \frac{time \;on \;the \;preferred \;side}{time \;on \;the \;non-preferred \;side}$$
 
-
 We found a significant effect of timepoint on CPA scores such that the ratio decreased between the pre-test and the post-test (F(1,39) = 22.67, p < 0.001)
 
 ```{r,analyze_CPA_scores}
@@ -595,17 +594,6 @@ knitr::kable(get_anova_table(a))
 ```
 
 The magnitude of the change in CPA score was not different for NorBNI-treated mice (p = 0.48).
-
-```{r}
-library(car)
-leveneTest(CPA_change_score ~ Drug, y2)
-t.test(CPA_change_score~Drug, data=y2,var.equal=TRUE)
-
-
-Nor <- y2[y2$Drug == "NorBNI", ]
-
-boxplot(Nor$CPA_change_score)
-```
 
 
 

@@ -1,7 +1,5 @@
 --- 
 title: "TMT.KOR Book of Data"
-author: "Jennet Baumbach"
-date: "`r Sys.Date()`"
 site: bookdown::bookdown_site
 documentclass: book
 bibliography: [book.bib, packages.bib]
@@ -14,6 +12,8 @@ github-repo: rstudio/bookdown-demo
 This bookdown project contains raw data, data analyses, and code to generate data visualizations for the paper [**A single exposure to the predator odor 2,4,5-trimethylthiazoline causes long-lasting affective behavioral changes in female mice: Modulation by kappa opioid receptor signaling**](https://www.sciencedirect.com/science/article/pii/S0091305724001163#f0010)
 
 - Raw data and code to generate the figure panels are available on our github.
+
+- Code to generate the figures and statistical analyses was written by **Jennet Baumbach**.
 
 - Any questions about these data should be directed to the corresponding author: **Loren Martin**, Ph.D lj.martin@utoronto.ca
 
